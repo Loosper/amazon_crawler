@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 import requests
 import json
+import xml.etree.ElementTree
 import hmac
+from lxml import etree
 from urllib import parse
 from datetime import datetime
 from hashlib import sha256
@@ -11,8 +13,10 @@ from base64 import b64encode
 def load_settings():
     settings = ''
     with open('settings.json', 'r') as info:
-        settings = json.loads(info.read())
-
+        try:
+            settings = json.loads(info.read())
+        except json.JSONDecodeError:
+            print('Invalid settings.')
     return settings
 
 
@@ -21,10 +25,12 @@ settings = load_settings()
 # example input, generated somwhere else
 parameters = {
     'Service': 'AWSECommerceService',
+    'Operation': 'ItemSearch',
     'AWSAccessKeyId': settings['access_key_id'],
     # 'asdfdsafasd': 'test',
-    'AssociateTag': settings['tracking_id']
-    }
+    'AssociateTag': settings['tracking_id'],
+    'Keywords': ''
+}
 
 
 def sign_request(query_parameters, secret_key):
@@ -39,7 +45,7 @@ def sign_request(query_parameters, secret_key):
     encoded_parameters.sort()
 
     hash_string = (
-        'GET\nwebservices.amazon.com\n/onca/xml\n' +
+        'GET\nwebservices.amazon.co.uk\n/onca/xml\n' +
         '&'.join(encoded_parameters)
     ).encode('utf-8')
 
@@ -54,4 +60,19 @@ def sign_request(query_parameters, secret_key):
     return query_parameters
 
 
-# print(load_settings())
+def print_errors(Errors=None: xml):
+    for error in Errors:
+        print(etree.dump(error))
+
+
+response = requests.get(
+    'http://webservices.amazon.co.uk/onca/xml',
+    params=sign_request(parameters, settings['secret_key'])
+)
+response_data = etree.fromstring(response.text.replace(
+    'http://webservices.amazon.com/AWSECommerceService/2011-08-01', ''
+))
+
+# print(list(response_data.iter(tag='Arguments')))
+for child in response_data.iter('Errors'):
+    print_errors()
