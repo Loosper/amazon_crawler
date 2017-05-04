@@ -6,16 +6,26 @@ connection = sqlite.connect('database.sql')
 
 cursor = connection.cursor()
 make_string = '''
-    DROP TABLE `items`;
+    DROP TABLE IF EXISTS `items`;
     CREATE TABLE `items` (
-    `index` INTEGER PRIMARY KEY ASC AUTOINCREMENT,
-    `item_name` TEXT NOT NULL,
-    `ASIN` TEXT NOT NULL,
-    `URL` TEXT NOT NULL,
+    `Title` TEXT NOT NULL,
+    `Price` INTEGER DEFAULT NULL,
+    `ASIN` TEXT PRIMARY KEY,
+    `DetailPageURL` TEXT NOT NULL,
     `actor` TEXT DEFAULT NULL,
-    `manufacturer` TEXT DEFAULT NULL,
-    `ProductGroup` TEXT
+    `Manufacturer` TEXT DEFAULT NULL,
+    `ProductGroup` TEXT,
+    `Creator`
     );
+    --`date_added`
+
+    DROP TABLE IF EXISTS 'browse_nodes';
+    CREATE TABLE `browse_nodes` (
+        `node_id` INTEGER PRIMARY KEY,
+        `Name` TEXT NOT NULL,
+        `has_children` INTEGER DEFAULT NULL,
+        `valid` INTEGER DEFAULT NULL
+    )
 '''
 # maybe?:
 # url to item
