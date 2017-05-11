@@ -1,9 +1,10 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.6
 import requests
 import json
 import hmac
 import sqlite3 as sqlite
 import xml.etree.ElementTree as etree
+import time
 # from xml.dom import minidom
 # may be easier to use
 from re import sub
@@ -26,6 +27,9 @@ class AmazonAPIHandler:
     def _print_errors(self):
         for error in self.response.findall('Items/Request/Errors/'):
             # use logging instead of simple prints
+            etree.dump(error)
+
+        for error in self.response.findall('Error'):
             etree.dump(error)
 
     def _sign_request(self):
@@ -87,6 +91,8 @@ def load_settings():
 
 
 # BrowseNodeLookup
+# this loads all subelements as well. Might want to control that
+# Also is there any use in mapping parents to children?
 def load_browse_node(node_id: int):
     request = AmazonAPIHandler(
         settings, {'Operation': 'BrowseNodeLookup', 'BrowseNodeId': node_id}
@@ -108,13 +114,14 @@ def load_browse_node(node_id: int):
         # etree.dump(child)
         children_number += 1
 
-    if children_number != 0:
-        data = (
-            node_id,
-            response.find('BrowseNodes/BrowseNode/Name').text,
-            children_number
-        )
-        cursor.execute(query, data)
+    # if children_number != 0:
+
+    data = (
+        node_id,
+        response.find('BrowseNodes/BrowseNode/Name').text,
+        children_number
+    )
+    cursor.execute(query, data)
 
     # commit here or not?
 
@@ -145,6 +152,15 @@ def get_items(parameters):
         cursor.execute(query.format(columns, placeholder), values)
 
 
+# put this in a thread and wait 1 second
+# ~0.17 is the fastest ItemSearch
+# ~0.13 is that of BrowseNodeLookup
+def api_timeout_handler(executer):
+    start = time.time()
+    executer()
+    print(time.time() - start)
+
+
 settings = load_settings()
 
 connection = sqlite.connect('database.sql')
@@ -152,11 +168,14 @@ cursor = connection.cursor()
 
 
 # ItemLookup for price
-# get_items({
-#     'Operation': 'ItemSearch', 'Keywords': 'SSD',
-#     'SearchIndex': 'PCHardware', 'MinPercentageOff': 20
-# })
-load_browse_node(560800)
+# None
+
+get_items({
+    'Operation': 'ItemSearch', 'Keywords': 'SSD',
+    'SearchIndex': 'PCHardware', 'MinPercentageOff': 20
+})
+
+# load_browse_node(560800)
 
 connection.commit()
 
@@ -167,6 +186,6 @@ cursor.execute(
     WHERE `has_children` = 0;
     '''
 )
-cursor.execute('SELECT `Title` FROM `items`')
+# cursor.execute('SELECT `Title` FROM `items`')
 
-print(json.dumps(cursor.fetchall()))
+# print(json.dumps(cursor.fetchall()))
