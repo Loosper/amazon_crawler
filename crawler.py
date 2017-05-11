@@ -3,7 +3,6 @@ import requests
 import json
 import hmac
 import sqlite3 as sqlite
-# from lxml import etree
 import xml.etree.ElementTree as etree
 # from xml.dom import minidom
 # may be easier to use
@@ -88,7 +87,7 @@ def load_settings():
 
 
 # BrowseNodeLookup
-def get_node_children(node_id: int):
+def load_browse_node(node_id: int):
     request = AmazonAPIHandler(
         settings, {'Operation': 'BrowseNodeLookup', 'BrowseNodeId': node_id}
     )
@@ -101,23 +100,23 @@ def get_node_children(node_id: int):
     '''
     children_number = 0
     response = request.send_request()
-
+    # etree.dump(response)
     for child in response.findall(
         'BrowseNodes/BrowseNode/Children/BrowseNode'
     ):
+        load_browse_node(child.find('BrowseNodeId').text)
         # etree.dump(child)
-        child_id = child.find('BrowseNodeId').text
-        data = (
-            child_id,
-            child.find('Name').text,
-            get_node_children(child_id)
-        )
-        print
-        cursor.execute(query, data)
-        connection.commit()
         children_number += 1
 
-    return children_number
+    if children_number != 0:
+        data = (
+            node_id,
+            response.find('BrowseNodes/BrowseNode/Name').text,
+            children_number
+        )
+        cursor.execute(query, data)
+
+    # commit here or not?
 
 
 # ItemSearch
@@ -144,7 +143,6 @@ def get_items(parameters):
 
         # print(json.dumps(values))
         cursor.execute(query.format(columns, placeholder), values)
-        connection.commit()
 
 
 settings = load_settings()
@@ -154,12 +152,13 @@ cursor = connection.cursor()
 
 
 # ItemLookup for price
-get_items({
-    'Operation': 'ItemSearch', 'Keywords': 'SSD',
-    'SearchIndex': 'PCHardware', 'MinPercentageOff': 20
-})
-# get_node_children(560800)
+# get_items({
+#     'Operation': 'ItemSearch', 'Keywords': 'SSD',
+#     'SearchIndex': 'PCHardware', 'MinPercentageOff': 20
+# })
+load_browse_node(560800)
 
+connection.commit()
 
 cursor.execute(
     '''
